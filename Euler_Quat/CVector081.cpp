@@ -6,7 +6,11 @@
 #include<iomanip>
 #include <iostream>
 
-CVector081::CVector081(){}
+CVector081::CVector081() {
+	x = 0;
+	y = 0;
+	z = 0;
+}
 
 CVector081::CVector081(const CVector081& vec) {// 这里要在形参里加const，不加直接报错，可以探究一下些在报告里
 	x = vec.x;
@@ -24,7 +28,7 @@ void CVector081::Set(float X, float Y, float Z) {
 	x = X;
 	y = Y;
 	z = Z;
-};
+}
 
 CVector081 CVector081::operator+(const CVector081 &p) {
 	return CVector081(x + p.x, y + p.y, z + p.z);

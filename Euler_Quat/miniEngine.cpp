@@ -6,6 +6,7 @@
 #include <atlimage.h>
 #include "glew.h"
 #include "glut.h"
+#include "CModel.h"
 #include "camera.h" // Õâ¸öÒªÊÇÐ´ÔÚÇ°ÃæµÄ»°¾Í²»ÐÐµÄ£¬·ÇµÃÐ´ÔÚÕâ¸öÎ»ÖÃ²ÅÄÜ±àÒë¹ý
 #include <vector>
 #include <map>
@@ -14,21 +15,11 @@
 #include <iostream>
 #include "string.h"
 #include <vector>
-// ÎÆÀí
 
 using namespace std;
 
-//¶¨ÒåÎÆÀí
-GLuint sun_texture[1] = { 0 };
-GLuint moon_texture[1] = { 0 };
-GLuint space_station_texture[1] = { 0 };
-GLuint earth_texture[1] = { 0 };
-GLuint sky_texture[1] = { 0 };
-GLuint person_texture[1] = { 0 };
-
 //³£Á¿Çø
 float unit_M[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-float INIT_CAMERAPOS_X = 155, INIT_CAMERAPOS_Y = 10, INIT_CAMERAPOS_Z = 50;
 
 //2D×ÖÄÚÈÝ
 char* status_contnet;
@@ -53,56 +44,34 @@ bool need_fly = true; // ¼ÇÂ¼»ð¼ýÊÇ·ñ»¹ÐèÒª¼ÌÐø·É£¬ÒòÎª·É¹ýÍ·»áÖ±½ÓÔú½øÔÂÁÁÀï£¬»
 bool have_started = false; // ¼ÇÂ¼»ð¼ýµÄÆð·É¹ý£¬·ÀÖ¹×·×ÙÔÂÁÁµÄ¹ý³ÌÖÐ¸ß¶ÈµÍÓÚÆð·ÉãÐÖµµ¼ÖÂÖØÐÂÆð·ÉÁË
 bool rocket_start = false; 
 
-// ÐÇÇòÎ»ÖÃ
-CVector081 sun_pos = CVector081();
-CVector081 mercury_pos = CVector081();
-CVector081 venus_pos = CVector081();
-CVector081 earth_pos = CVector081();
-CVector081 moon_pos = CVector081();
-CVector081 space_station_pos = CVector081();
-CVector081 person_pos = CVector081();
-CVector081 mars_pos = CVector081();
-CVector081 jupiter_pos = CVector081();
-CVector081 saturn_pos = CVector081();
-CVector081 uranus_pos = CVector081();
-CVector081 neptune_pos = CVector081();
+// ËùÓÐÄ£ÐÍµÄÉùÃ÷
 
-//ÐÇÇòµÄ°ë¾¶
-float rMoon = 3;
-float rEarth = 10;
-//¿Õ¼äÕ¾µÄ±ß³¤
-float station_size = 3;
-//ÈËµÄÊý¾Ý
-float person_y = 0.1;
-float person_x = 0.03;
-float person_z = 0.03;
+// ÐÇÇò
+CModel sun = CModel();
+CModel mercury = CModel();
+CModel venus = CModel();
+CModel earth = CModel();
+CModel moon = CModel();
+CModel space_station = CModel();
+CModel person = CModel();
+CModel mars = CModel();
+CModel jupiter = CModel();
+CModel saturn = CModel();
+CModel uranus = CModel();
+CModel neptune = CModel();
+// ¿Õ¼äÕ¾
+CModel station = CModel();
+// »ð¼ý
+CModel rocket = CModel(); // »ð¼ýÍ·
+CModel rocket1 = CModel(); // »ð¼ýµ××ù
+//Ìì¿ÕºÐ
+CModel sky = CModel();
+//ÈË
+CModel preson = CModel();
 
-// ÐÐÐÇÈÆÐÐ°ë¾¶
-float RMercury = 110;
-float RVenus = 130;
-float REarth = 160;
-float RMoon = 25;
-float RStation = 15;
-float RMars = 210;
-float RJupiter = 240;
-float RSaturn = 320;
-float RUranus = 390;
-float RNeptune = 420;
 
-// »ð¼ýÎ»ÖÃºÍËÙ¶ÈÐÅÏ¢
-CVector081 rocket1_pos = CVector081();
-CVector081 rocket1_v = CVector081();
-CVector081 rocket1_rotate_axis = CVector081();
-float rocket_to_moon_seta = 0;
-CVector081 dir_rocket_to_moon = CVector081();// ÔÂÇòºÍ»ð¼ýÁ¬Ïß·½Ïò
-
-CVector081 rocket2_pos = CVector081();
-CVector081 rocket2_speed = CVector081();
-
-bool pressed2 = true;
-bool rocket2_draw = true;
+bool rocket1_draw = true;
 bool updateAll = true;
-bool pos_complete = false;// Î»ÖÃ²åÖµÍê±ÏµÄ±êÖ¾
 float rocket_seta = 0; // ¼ÇÂ¼»ð¼ýÐý×ªµÄ½Ç¶È£¬ÊÇÖ¸±ä·½Ïò×ªµÄÊ±ºò
 
 // ÊÇ·ñ½ÓÊÜ»Ø³µ¼ü£¬Ò²¾ÍÊÇÔÚ¶¯×÷·¢ÉúÆÚ¼äÉèÎªfalse£¬ÒÔÃâ´òÂÒ¶¯×÷½øÐÐ
@@ -212,46 +181,10 @@ void responseAllKey() {
 }
 
 void updateRocket() {
-	if (rocket_start) {
-		if (!have_started) {
-			if (rocket1_pos.y < 15) {
-				rocket1_pos = rocket1_pos + rocket1_v;
-				rocket2_pos = rocket2_pos + rocket2_speed;
-			}
-			else if (rocket1_pos.y >= 15 && rocket1_pos.y < 20) {
-				rocket1_pos = rocket1_pos + rocket1_v;
-				rocket2_pos = rocket2_pos - rocket2_speed;
-			}
-			else if (rocket1_pos.y >= 20) {
-				if (rocket2_pos.y > 10) {
-					rocket2_pos = rocket2_pos - rocket2_speed;
-				}
-				else if (rocket2_pos.y <= 10) {
-					rocket2_draw = false;
-				}
-				if (rocket_seta < 90) {
-					rocket_seta += 1;
-				}
-			}
-		}
-		if ((moon_pos - rocket1_pos).len() < 1.5) {
-			need_fly = false;
-		}
-		if (need_fly && rocket_seta >= 90) {
-			have_started = true;
-			// ÐÞÕý·½Ïò
-			CVector081 dir_rocket_to_moon = (moon_pos - rocket1_pos).Normalize();
-			rocket1_pos = rocket1_pos + dir_rocket_to_moon * 0.5;
-			rocket1_rotate_axis = dir_rocket_to_moon.crossMul(rocket1_v).Normalize();
-			float cos_val = rocket1_v.Normalize().dotMul(dir_rocket_to_moon);
-			rocket_to_moon_seta = -acos(cos_val) / PI * 180;
-		}
-		if ((moon_pos - rocket1_pos).len() > 1.5) {
-			need_fly = true;
-		}
-	}
-	cameras[2].parentMatrix.SetTrans(rocket1_pos);
-	//rocket_camera.parentMatrix.SetTrans(rocket1_pos);
+	//TODO
+	//cout << rocket1.getAbsPos().x << ",";
+	//cout << rocket1.getAbsPos().y << ",";
+	//cout << rocket1.getAbsPos().z << endl;
 }
 
 void updatePlanets() {
@@ -259,55 +192,37 @@ void updatePlanets() {
 	if ((theta / (22.5 * 8.8 * 36.5 * 67.8 * 3 * 433.3 * 37.8 * 16.5 * 3079.9)) > 360) {
 		theta -= (22.5 * 8.8 * 36.5 * 67.8 * 3 * 433.3 * 37.8 * 16.5 * 3079.9) * 360;
 	}
-	venus_pos.x = cos(theta / 22.5) * RVenus;
-	venus_pos.z = sin(theta / 22.5) * RVenus;
-	mercury_pos.x = cos(theta / 8.8) * RMercury;
-	mercury_pos.z = sin(theta / 8.8) * RMercury;
-	earth_pos.x = cos(theta / 36.5) * REarth;
-	earth_pos.z = sin(theta / 36.5) * REarth;
-	mars_pos.x = cos(theta / 68.7) * RMars;
-	mars_pos.z = sin(theta / 68.7) * RMars;
-
-	moon_pos.x = cos(theta / 3) * RMoon;
-	moon_pos.z = sin(theta / 3) * RMoon;
-	CMatrix081 transM = CMatrix081();
-	transM.SetTrans(earth_pos);
-	moon_pos = transM.posMul(moon_pos);
-
-	space_station_pos.x = cos(theta / 2) * RStation;
-	space_station_pos.z = sin(theta / 2) * RStation;
-	space_station_pos = transM.posMul(space_station_pos);
-
-	person_pos.x = 0;
-	person_pos.y = cos(theta / 20) * (rMoon + person_y);
-	person_pos.z = sin(theta / 20) * (rMoon + person_y);
-	CMatrix081 transM1 = CMatrix081();
-	transM1.SetTrans(moon_pos);
-	person_pos = transM1.posMul(person_pos);
-	//cout << person_pos[0] << endl << person_pos[1] << endl << person_pos[2] << endl;
-
-	// ¸üÐÂ°ó¶¨ÔÚÊÓµãÉÏµÄÏà»úÎ»ÖÃ
-	cameras[1].parentMatrix.SetTrans(earth_pos);
-	cameras[3].parentMatrix.SetTrans(space_station_pos);
-	cameras[4].parentMatrix.SetTrans(person_pos);
-
-	jupiter_pos.x = cos(theta / 433.3) * RJupiter;
-	jupiter_pos.z = sin(theta / 433.3) * RJupiter;
-	saturn_pos.x = cos(theta / 37.8) * RSaturn;
-	saturn_pos.z = sin(theta / 37.8) * RSaturn;
-	neptune_pos.x = cos(theta / 16.5) * RNeptune;
-	neptune_pos.z = sin(theta / 16.5) * RNeptune;
-	uranus_pos.x = cos(theta / 3079.9) * RUranus;
-	uranus_pos.z = sin(theta / 3079.9) * RUranus;
+	venus.pos.x = cos(theta / 22.5) * venus.R;
+	venus.pos.z = sin(theta / 22.5) * venus.R;
+	mercury.pos.x = cos(theta / 8.8) * mercury.R;
+	mercury.pos.z = sin(theta / 8.8) * mercury.R;
+	earth.pos.x = cos(theta / 36.5) * earth.R;
+	earth.pos.z = sin(theta / 36.5) * earth.R;
+	mars.pos.x = cos(theta / 68.7) * mars.R;
+	mars.pos.z = sin(theta / 68.7) * mars.R;
+	moon.pos.x = cos(theta / 3) * moon.R;
+	moon.pos.z = sin(theta / 3) * moon.R;
+	station.pos.x = cos(theta / 2) * station.R;
+	station.pos.z = sin(theta / 2) * station.R;
+	person.pos.y = cos(theta / 20) * (moon.size.x + person.size.y);
+	person.pos.z = sin(theta / 20) * (moon.size.x + person.size.y);
+	jupiter.pos.x = cos(theta / 433.3) * jupiter.R;
+	jupiter.pos.z = sin(theta / 433.3) * jupiter.R;
+	saturn.pos.x = cos(theta / 37.8) * saturn.R;
+	saturn.pos.z = sin(theta / 37.8) * saturn.R;
+	neptune.pos.x = cos(theta / 16.5) * neptune.R;
+	neptune.pos.z = sin(theta / 16.5) * neptune.R;
+	uranus.pos.x = cos(theta / 3079.9) * uranus.R;
+	uranus.pos.z = sin(theta / 3079.9) * uranus.R;
 }
 
-void updateView() {
+void updateView() { // ¿ØÖÆÊÓµã²åÖµ¹ý³ÌµÄµÄÊôÐÔÖµ±ä¶¯Ä£¿é£¬½â·Å¼üÎ»²Ù×÷
 	if (!recieve_key) {
 		if (cur_camera->auto_move() == 0) {
-			for (int i = 0; i < 3; i++) {
-				cout << cur_camera->pos[i] << ",";
-			}
-			cout << endl;
+			//for (int i = 0; i < 3; i++) {
+			//	cout << cur_camera->pos[i] << ",";
+			//}
+			//cout << endl;
 			updateAll = false;
 			return;
 		}
@@ -498,26 +413,8 @@ void myKeyboardUpFunc(unsigned char key, int x, int y)
 		CQuaternion081 q_Eye = cur_camera->mlookAt.GetInverse().ToQuaternion();
 		CQuaternion081 result_dir = cameras[next_camera_number].mlookAt.GetInverse().ToQuaternion();
 
-		//for (int i = 0; i < 3; i++) {
-		//	cout << cameras[next_camera_number].elookAt[i] << ", ";
-		//}
-		//cout << endl;
-		//for (int i = 0; i < 3; i++) {
-		//	cout << cur_camera->elookAt[i] << ", ";
-		//}
-		//cout << endl;
-
-		//for (int i = 0; i < 4; i++) {
-		//	cout << q_Eye[i] << ", ";
-		//}
-		//cout << endl;
-		//for (int i = 0; i < 4; i++) {
-		//	cout << result_dir[i] << ", ";
-		//}
-		//cout << endl;
-
-		CVector081 start_pos =cur_camera->parentMatrix.posMul(cur_camera->pos);
-		CVector081 end_pos =cameras[next_camera_number].parentMatrix.posMul(cameras[next_camera_number].pos);
+		CVector081 start_pos =cur_camera->getAbsPos();
+		CVector081 end_pos = cameras[next_camera_number].getAbsPos();
 
 		// ¸ù¾Ý½Ç¶È²îÈ·¶¨²åÖµÊýÁ¿
 		cur_camera->view_num = int (abs(cur_camera->elookAt.h - cameras[next_camera_number].elookAt.h) +
@@ -551,8 +448,7 @@ void myKeyboardUpFunc(unsigned char key, int x, int y)
 	}
 }
 
-void SetRC()
-{
+void initLight() {
 	// ¹âÕÕÉèÖÃ
 	glClearColor(0, 0, 0, 1);
 	glShadeModel(GL_FLAT);
@@ -570,7 +466,11 @@ void SetRC()
 	glLightfv(GL_LIGHT0, GL_SPECULAR, spe);
 	glEnable(GL_COLOR_MATERIAL);
 	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+}
 
+void SetRC()
+{
+	initLight();
 	// ·Ç¹âÕÕÉèÖÃ
 	glShadeModel(GL_FLAT);
 	//glEnable(GL_CULL_FACE);
@@ -579,12 +479,13 @@ void SetRC()
 	glEnable(GL_DEPTH_TEST);
 	glPolygonMode(GL_BACK, GL_LINE);
 
-	LoadGLTextures("Inkedsun.jpg", *sun_texture);
-	LoadGLTextures("Inkedmoon.jpg", *moon_texture);
-	LoadGLTextures("sky.jpg", *sky_texture);
-	LoadGLTextures("Inkedearth.jpg", *earth_texture);
-	LoadGLTextures("station.jpg", *space_station_texture);
-	LoadGLTextures("person.jpg", *person_texture);
+	// ¸øÐèÒªÌùÍ¼µÄÄ£ÐÍ¼ÓÔØÌùÍ¼,²»ÄÜÖ»¼ÓÔØÒ»´ÎºÃÏñ£¬ÎÒÒ²²»ÖªµÀÎªÉ¶£¬·´ÕýÖ»ÄÜ·ÅÕâÀï²ÅÄÜÉúÐ§
+	moon.LoadGLTextures("Inkedmoon.jpg");
+	sun.LoadGLTextures("Inkedsun.jpg");
+	sky.LoadGLTextures("sky.jpg");
+	earth.LoadGLTextures("Inkedearth.jpg");
+	station.LoadGLTextures("station.jpg");
+	person.LoadGLTextures("person.jpg");
 }
 
 // Í³Ò»°æ±¾
@@ -595,219 +496,9 @@ void SetView()
 		glTranslatef(-cur_camera->pos.x, -cur_camera->pos.y, -cur_camera->pos.z);
 	}
 	else { // Í³Ò»Ê¹ÓÃ¸¸¾ØÕóµÄ·½Ê½À´½²Ïà»úµÄ³õÊ¼Î»ÖÃºÍºóÃæµÄÀÛ»ý±ä»¯Á¿·Ö¿ªÀ´£¬Í³Ò»ÁËÐÎÊ½
-		CVector081 v = cur_camera->parentMatrix.posMul(cur_camera->pos);
+		CVector081 v = cur_camera->getAbsPos();
 		glTranslatef(-v.x, -v.y, -v.z);
 	}
-
-	//if (view_mode == 1 && !recieve_key) {
-	//	glTranslatef(-cur_camera->pos.x, -cur_camera->pos.y, -cur_camera->pos.z);
-	//}
-	//if (view_mode == 1 && recieve_key) {
-	//	CVector081 v = cur_camera->parentMatrix.posMul(cur_camera->pos);
-	//	glTranslatef(-v.x, -v.y, -v.z);
-	//}
-	//if (view_mode == 0) {
-	//	glTranslatef(-cur_camera->pos.x, -cur_camera->pos.y, -cur_camera->pos.z);
-	//}
-}
-
-void DrawRocket1()
-{
-	glPushMatrix();
-	myTranslatef(rocket1_pos.x, rocket1_pos.y, rocket1_pos.z);
-	//myRotate(90, 1, 0, 0); // ÊÇÓÃ×Ô¼ºµÄÐý×ªº¯ÊýÊµÏÖÐý×ª
-	// ×ªÏòÆ½·É¹ý³ÌÓÃµÄÐý×ª
-	if (!have_started) {
-		myRotate(-rocket_seta, 0, 0, 1);
-	}
-	else {
-		myRotate(rocket_to_moon_seta, rocket1_rotate_axis.x, rocket1_rotate_axis.y, rocket1_rotate_axis.z);
-	}
-
-	//»ð¼ýÍ·
-	glColor3f(0.5, 0, 0);
-	glPushMatrix();
-	myRotate(-90, 1, 0, 0); // ÊÇÓÃ×Ô¼ºµÄÐý×ªº¯ÊýÊµÏÖÐý×ª
-	glutSolidCone(0.1, 0.3, 10, 10);
-	glPopMatrix();
-
-	//»ð¼ýÉí
-	glPushMatrix();
-	glColor3f(119 / 255.0, 137 / 255.0, 173 / 255.0);
-	myTranslatef(0, -0.7, 0);
-	myScalef(0.1, 1.5, 0.1);
-	myRotate(-90, 1, 0, 0);
-	glutSolidTorus(0.5, 0.7, 10, 10);
-	glPopMatrix();
-
-	myTranslatef(-rocket1_pos.x, -rocket1_pos.y, -rocket1_pos.z);
-	glPopMatrix();
-}
-
-void DrawRocket2()
-{
-	if (rocket2_draw) {
-		myTranslatef(rocket2_pos.x, rocket2_pos.y, rocket2_pos.z);
-		glPushMatrix();
-		//»ð¼ýÉí
-		glColor3f(53 / 255.0, 42 / 255.0, 85 / 255.0);
-		glPushMatrix();
-
-		glScalef(0.15, 1.5, 0.15);
-		myRotate(-90, 1, 0, 0);
-		glutSolidTorus(0.5, 0.7, 10, 10);
-
-		glPopMatrix();
-
-		glPopMatrix();
-		myTranslatef(-rocket2_pos.x, -rocket2_pos.y, -rocket2_pos.z);
-	}
-}
-
-void DrawRocket() {
-	DrawRocket1();
-	DrawRocket2();
-}
-
-
-void DrawPlanet(float r, float g, float b, float rr) {
-	glColor3f(r / 255.0, g / 255.0, b / 255.0);
-	gluSphere(gluNewQuadric(), rr, min(rr * 10.0, 100.0), min(rr * 10.0, 100.0));
-}
-
-void DrawSkyBox() {
-	DrawBox(500, 500, 500, *sky_texture);
-}
-
-// ¿Õ¼äÕ¾¾ÍÊÇµÚ¶þ¸öÔÂÁÁ
-void DrawSpaceStation() {
-	glPushMatrix();
-	myTranslatef(space_station_pos.x, space_station_pos.y, space_station_pos.z);
-	DrawBox(1.5, 1.5, 1.5, *space_station_texture);
-	myTranslatef(-space_station_pos.x, -space_station_pos.y, -space_station_pos.z);
-	glPopMatrix();
-}
-
-void DrawPerson() {
-	glPushMatrix();
-	myTranslatef(person_pos.x, person_pos.y, person_pos.z);
-	myRotate(theta / 20 * 180 / 3.14, 1, 0, 0);
-	//myRotate(-theta / 20 * 180 / 3.14, 0, 1, 0);
-	DrawBox(person_x, person_y, person_z, *person_texture);
-	myTranslatef(-person_pos.x, -person_pos.y, -person_pos.z);
-	glPopMatrix();
-}
-
-void DrawSun() {
-	glEnable(GL_TEXTURE_2D);
-	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-	glBindTexture(GL_TEXTURE_2D, sun_texture[0]);
-	glEnable(GL_TEXTURE_GEN_S);
-	glPolygonMode(GL_BACK, GL_FILL);
-	glEnable(GL_TEXTURE_GEN_T);
-	float pos[4] = {0,0,0,1};
-	glLightfv(GL_LIGHT0, GL_POSITION, pos);
-	DrawPlanet(255, 255, 255, 100);
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
-	glDisable(GL_TEXTURE_2D);
-}
-void DrawMercury() {
-	// Ë®ÐÇ£¬»ÒÉ«
-	glPushMatrix();
-	myTranslatef(mercury_pos.x, mercury_pos.y, mercury_pos.z);
-	DrawPlanet(220, 220, 220, 3);
-	myTranslatef(-mercury_pos.x, -mercury_pos.y, -mercury_pos.z);
-	glPopMatrix();
-}
-void DrawVenus() {
-	glPushMatrix();
-	myTranslatef(venus_pos.x, venus_pos.y, venus_pos.z);
-	DrawPlanet(172, 102, 17, 5);
-	myTranslatef(-venus_pos.x, -venus_pos.y, -venus_pos.z);
-	glPopMatrix();
-}
-void DrawMoon() {
-	glPushMatrix();
-	glEnable(GL_TEXTURE_2D);
-	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-	glBindTexture(GL_TEXTURE_2D, moon_texture[0]);
-	glEnable(GL_TEXTURE_GEN_S);
-	glEnable(GL_TEXTURE_GEN_T);
-	myTranslatef(moon_pos.x, moon_pos.y, moon_pos.z);
-	DrawPlanet(255, 255, 255, rMoon);
-	myTranslatef(-moon_pos.x, -moon_pos.y, -moon_pos.z);
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
-	glDisable(GL_TEXTURE_2D);
-	glPopMatrix();
-}
-void DrawEarth() {
-	glPushMatrix();
-	glEnable(GL_TEXTURE_2D);
-	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-	glBindTexture(GL_TEXTURE_2D, earth_texture[0]);
-	glEnable(GL_TEXTURE_GEN_S);
-	glEnable(GL_TEXTURE_GEN_T);
-	myTranslatef(earth_pos.x, earth_pos.y, earth_pos.z);
-	DrawPlanet(255, 255, 255, rEarth);
-	myTranslatef(-earth_pos.x, -earth_pos.y, -earth_pos.z);
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
-	glDisable(GL_TEXTURE_2D);
-	glPopMatrix();
-}
-void DrawMars() {
-	glPushMatrix();
-	myTranslatef(mars_pos.x, mars_pos.y, mars_pos.z);
-	DrawPlanet(173, 133, 92, 6);
-	myTranslatef(-mars_pos.x, -mars_pos.y, -mars_pos.z);
-	glPopMatrix();
-}
-void DrawJupiter() {
-	glPushMatrix();
-	myTranslatef(jupiter_pos.x, jupiter_pos.y, jupiter_pos.z);
-	DrawPlanet(151, 123, 99, 20);
-	myTranslatef(-jupiter_pos.x, -jupiter_pos.y, -jupiter_pos.z);
-	glPopMatrix();
-}
-void DrawSaturn() {
-	glPushMatrix();
-	myTranslatef(saturn_pos.x, saturn_pos.y, saturn_pos.z);
-	DrawPlanet(181, 154, 126, 30);
-	myTranslatef(-saturn_pos.x, -saturn_pos.y, -saturn_pos.z);
-	glPopMatrix();
-}
-void DrawUranus() {
-	glPushMatrix();
-	myTranslatef(uranus_pos.x, uranus_pos.y, uranus_pos.z);
-	DrawPlanet(137, 157, 168, 9);
-	myTranslatef(-uranus_pos.x, -uranus_pos.y, -uranus_pos.z);
-	glPopMatrix();
-}
-void DrawNeptune() {
-	glPushMatrix();
-	myTranslatef(neptune_pos.x, neptune_pos.y, neptune_pos.z);
-	DrawPlanet(99, 148, 232, 8);
-	myTranslatef(-neptune_pos.x, -neptune_pos.y, -neptune_pos.z);
-	glPopMatrix();
-}
-
-void DrawGalaxy() {
-	DrawSun();
-	DrawMercury();
-	DrawVenus();
-	DrawEarth();
-	DrawSpaceStation();
-	DrawMoon();
-	DrawMars();
-	DrawJupiter();
-	DrawSaturn();
-	DrawUranus();
-	DrawNeptune();
 }
 
 void Font2D(char* str, double x, double y, int size)
@@ -862,11 +553,23 @@ void RenderWorld() {
 	glEnable(GL_LIGHTING);
 	glEnable(GL_NORMALIZE);
 
-	DrawGalaxy();
-	DrawRocket();
-	DrawPerson();
-	DrawXYZAxis(500);
-	DrawSkyBox();
+	sky.Draw(2);
+	sun.Draw(1);
+	float pos[4] = {0,0,0,1};
+	glLightfv(GL_LIGHT0, GL_POSITION, pos);
+	station.Draw(2);
+	mercury.Draw(0);
+	venus.Draw(0);
+	earth.Draw(1);
+	moon.Draw(1);
+	mars.Draw(0);
+	jupiter.Draw(0);
+	saturn.Draw(0);
+	uranus.Draw(0);
+	neptune.Draw(0);
+	person.Draw(2);
+	rocket.Draw(3);
+	rocket1.Draw(4);
 
 	glDisable(GL_LIGHTING);
 	glDisable(GL_NORMALIZE);
@@ -897,56 +600,49 @@ void myReshape(int w, int h)
 }
 
 void initCamera() {
-	camera god_camera; // ÉÏµÛÊÓ½ÇÏà»ú
-	camera earth_camera; // µØÇòÊÓ½Ç
-	camera rocket_camera; // »ð¼ýÉÏ°ó¶¨µÄÏà»ú
-	camera space_station_camera; // ¿Õ¼äÕ¾ÊÓµã
-	camera person_camera; // Ì«¿ÕÈËÊÓµã
+	float INIT_CAMERAPOS_X = 155, INIT_CAMERAPOS_Y = 10, INIT_CAMERAPOS_Z = 50;
+	camera god_camera = camera(); // ÉÏµÛÊÓ½ÇÏà»ú
+	camera earth_camera = camera(); // µØÇòÊÓ½Ç
+	camera rocket_camera = camera(); // »ð¼ýÉÏ°ó¶¨µÄÏà»ú
+	camera space_station_camera = camera(); // ¿Õ¼äÕ¾ÊÓµã
+	camera person_camera = camera(); // Ì«¿ÕÈËÊÓµã
+
+	// ÊÓµãºÍ¶ÔÓ¦Ä£ÐÍ°ó¶¨
+	god_camera.parentModel = new CModel();
+	earth_camera.parentModel = &earth;
+	rocket_camera.parentModel = &rocket1;
+	space_station_camera.parentModel = &station;
+	person_camera.parentModel = &person;
 
 	// Ïà»úÎ»ÖÃ£¬ÊÓ½Ç³õÊ¼»¯
 	CVector081 cameraPos = CVector081(INIT_CAMERAPOS_X, INIT_CAMERAPOS_Y, INIT_CAMERAPOS_Z);
 	CEuler081 direct = CEuler081();
 
-	god_camera = camera();
-	//god_camera.parentMatrix.SetTrans(cameraPos);
 	god_camera.pos = cameraPos;
 	god_camera.elookAt = direct;
 	god_camera.mlookAt = direct.ToMatrix().GetInverse();
 
-	cameraPos = earth_pos;
-	cameraPos.y = earth_pos.y;
-	earth_camera = camera();
-	earth_camera.parentMatrix.SetTrans(cameraPos);
 	// ÕâÀïµÄÆ«ÒÆÁ¿²»ÄÜ·ÅÔÚ¸¸¾ØÕóÖÐ£¬Òª·ÅÔÚÏà»úµÄÎ»ÒÆÁ¿ÖÐ£¬ÓëÒÆ¶¯µÄÀÛ¼ÆÁ¿ºÏ²¢
 	// ·ñÔòÔÚ¸¸¾ØÕó×Ô¼ºÔÚ±ä»¯µÄÊ±ºò¾ÍË¢ÐÂµôÁË£¬¸¸¾ØÕóÊÇÎÒÃÇ²»ÄÜ¿ØÖÆµÄ£¬Ö»ÄÜ°ó¶¨
-	earth_camera.pos.y = rEarth;
+	earth_camera.pos.y = earth.size.x;
 	direct.h = 90;
 	direct.p = 0;
 	earth_camera.elookAt = direct;
 	earth_camera.mlookAt = direct.ToMatrix().GetInverse();
 
-	cameraPos = rocket1_pos;
-	rocket_camera = camera();
-	rocket_camera.parentMatrix.SetTrans(cameraPos);
 	rocket_camera.pos.x = - 3;
 	direct.h = -90;
 	direct.p = 0;
 	rocket_camera.elookAt = direct;
 	rocket_camera.mlookAt = direct.ToMatrix().GetInverse();
 
-	cameraPos = space_station_pos;
-	space_station_camera = camera();
-	space_station_camera.parentMatrix.SetTrans(cameraPos);
-	space_station_camera.pos.y = 1.5;
+	space_station_camera.pos.y = station.size.y;
 	direct.h = -90;
 	direct.p = 30;
 	space_station_camera.elookAt = direct;
 	space_station_camera.mlookAt = direct.ToMatrix().GetInverse();
 
-	cameraPos = person_pos;
-	person_camera = camera();
-	person_camera.parentMatrix.SetTrans(cameraPos);
-	person_camera.pos.y = person_y;
+	person_camera.pos.y = person.pos.y;
 	direct.h = 90;
 	direct.p = 10;
 	person_camera.elookAt = direct;
@@ -960,59 +656,94 @@ void initCamera() {
 
 	// ³õÊ¼Ïà»úÖ¸¶¨
 	cur_camera = &cameras[0];
+}
 
-	//dir_rocket_to_moon = (moon_pos - rocket1_pos).Normalize();// ÔÂÇòºÍ»ð¼ýÁ¬Ïß·½Ïò
-	//rocket_camera.mlookAt = dir_rocket_to_moon.Normalize().ToEuler().ToMatrix().GetInverse();
-	//rocket_camera.elookAt = rocket_camera.mlookAt.GetInverse().ToEuler();
+void initModelData() {
+
+	// ÐÐÐÇÈÆÐÐ°ë¾¶
+	mercury.R = 110;
+	venus.R = 130;
+	earth.R = 160;
+	moon.R = 25;
+	station.R = 15;
+	mars.R = 210;
+	jupiter.R = 240;
+	saturn.R = 320;
+	uranus.R = 390;
+	neptune.R = 420;
+
+	//Ä£ÐÍ´óÐ¡ÉèÖÃ
+	sun.setSize(100);
+	mercury.setSize(3);
+	venus.setSize(5);
+	earth.setSize(10);
+	moon.setSize(3);
+	station.setSize(3);
+	mars.setSize(6);
+	jupiter.setSize(20);
+	saturn.setSize(30);
+	uranus.setSize(9);
+	neptune.setSize(8);
+	person.setSize(0.03, 0.1, 0.03);
+	sky.setSize(500);
+	rocket.setSize(2, 1.5, 2);
+	rocket1.setSize(2, 1.5, 2);
+
+	// ²»ÌùÍ¼Ä£ÐÍÑÕÉ«µÄÉèÖÃ
+	mercury.setColor(220, 220, 220);
+	venus.setColor(172, 102, 17);
+	mars.setColor(173, 133, 92);
+	jupiter.setColor(151, 123, 99);
+	saturn.setColor(181, 154, 126);
+	uranus.setColor(137, 157, 168);
+	neptune.setColor(99, 148, 232);
+
+	// ¸¸¾ØÕóÉèÖÃ
+	sky.parentModel = new CModel();
+	sun.parentModel = new CModel();
+	mercury.parentModel = &sun;
+	venus.parentModel = &sun;
+	earth.parentModel = &sun;
+	moon.parentModel = &earth;
+	station.parentModel = &earth;
+	mars.parentModel = &sun;
+	jupiter.parentModel = &sun;
+	saturn.parentModel = &sun;
+	uranus.parentModel = &sun;
+	neptune.parentModel = &sun;
+	person.parentModel = &moon;
+	rocket.parentModel = &earth;
+	rocket1.parentModel = &earth;
 }
 
 void initModelPos() {
-	earth_pos = CVector081(REarth, 0, 0);
-	CMatrix081 transM = CMatrix081();
-	transM.SetTrans(earth_pos);
-
-	rocket1_pos = CVector081(0, 12, 0);
-	rocket2_pos = CVector081(0, 10.55, 0);
-	rocket1_v = CVector081(0, 0.1, 0.0001);
-	rocket2_speed = CVector081(0, 0.1, 0.0001);
-	rocket1_rotate_axis = CVector081(0, 0, 1);
-
-	rocket1_pos = transM.posMul(rocket1_pos);
-	rocket2_pos = transM.posMul(rocket2_pos);
-
-	sun_pos = CVector081(0, 0, 0);
-	mercury_pos = CVector081(RMercury, 0, 0);
-	venus_pos = CVector081(RVenus, 0, 0);
-
-	// ÔÂÁÁµÄÎ»ÖÃÊ¹ÓÃµÄÊÇÏà¶ÔÓÚÌ«ÑôµÄ£¬Ò²¾ÍÊÇ¾ø¶Ô×ø±êÏµ£¬ÕâÑù·½±ãºóÃæ¼ÆËã»ð¼ýµÄÏà¹Ø²ÎÊý
-	moon_pos = CVector081(RMoon, 0, 0);
-	moon_pos = transM.posMul(moon_pos);
-	space_station_pos = CVector081(RStation, 0, 0);
-	space_station_pos = transM.posMul(space_station_pos);
-
-	// ½«ÈË·ÅÔÚÕýÈ·µÄÏà¶ÔÎ»ÖÃÉÏ
-	person_pos = CVector081(0, rMoon + person_y / 2, 0);
-	CMatrix081 transM1 = CMatrix081();
-	transM1.SetTrans(moon_pos);
-	person_pos = transM1.posMul(person_pos);
-	//cout << person_pos[0] << endl << person_pos[1] << endl << person_pos[2] << endl;
-
-	mars_pos = CVector081(RMars, 0, 0);
-	jupiter_pos = CVector081(RJupiter, 0, 0);
-	saturn_pos = CVector081(RSaturn, 0, 0);
-	uranus_pos = CVector081(RUranus, 0, 0);
-	neptune_pos = CVector081(RNeptune, 0, 0);
+	// ÓÉÓÚÎÒÃÇÊ¹ÓÃÁË¸¸×Ó×ø±êµÄ·½Ê½£¬¶øÇÒ¸¸×ø±êÊ¹ÓÃ°ó¶¨µÄ·½Ê½ÊµÏÖµÄ£¬
+	// ¾ø¶ÔÎ»ÖÃ»áÓÉº¯ÊýgetAbsPosÊµÊ±¸ù¾Ý¸¸×ø±êºÍ×Ó×ø±ê±ä»¯×Ô¶¯¼ÆËã£¬
+	// Òò´ËÎÒÃÇ²»ÓÃÔÙ¸³ÓèÎ»ÖÃµÄÊ±ºò×Ô¼ºÈ«¶¼¿¼ÂÇÒ»±é£¬Õâ¾ÍÊÇ°ó¶¨µÄºÃ´¦
+	sun.pos = CVector081(0, 0, 0);
+	earth.pos = CVector081(earth.R, 0, 0);
+	mercury.pos = CVector081(mercury.R, 0, 0);
+	venus.pos = CVector081(venus.R, 0, 0);
+	moon.pos = CVector081(moon.R, 0, 0);
+	station.pos = CVector081(station.R, 0, 0);
+	person.pos = CVector081(0, moon.size.x + person.size.y / 2, 0);
+	mars.pos = CVector081(mars.R, 0, 0);
+	jupiter.pos = CVector081(jupiter.R, 0, 0);
+	saturn.pos = CVector081(saturn.R, 0, 0);
+	uranus.pos = CVector081(uranus.R, 0, 0);
+	neptune.pos = CVector081(neptune.R, 0, 0);
+	rocket.pos = CVector081(0, earth.size.x + 1.6, 0);
+	rocket1.pos = CVector081(0, earth.size.x + 1.8, 0);
 }
 
-void initLight() {
-	float pos[4] = {0,0,0,1};
-	glLightfv(GL_LIGHT0, GL_POSITION, pos);
+void initModel() {
+	initModelData();
+	initModelPos();
 }
 
 void init() {
 	status_contnet = "1.Fly";
-	initLight();
-	initModelPos();
+	initModel();
 	initCamera();
 }
 

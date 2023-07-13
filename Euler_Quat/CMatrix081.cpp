@@ -68,7 +68,7 @@ CVector081 CMatrix081::vecMul(CVector081& p)
 
 CVector081 CMatrix081::posMul(CVector081& p)
 {
-	CVector081 v;
+	CVector081 v = CVector081();
 	for (int i = 0; i < 3; i++) {
 		float val = 0;
 		for (int j = 0; j < 3; j++) {

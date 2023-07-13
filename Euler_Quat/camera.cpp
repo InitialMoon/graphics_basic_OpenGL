@@ -3,6 +3,7 @@
 #include "CVector081.h"
 #include "CQuaternion081.h"
 #include "glut.h"
+#include "CModel.h"
 #include "camera.h"
 #include <iostream>
 
@@ -16,11 +17,9 @@ camera::camera() {
 	elookAt.p = 0;
 	elookAt.b = 0;
 	mlookAt = elookAt.ToMatrix().GetInverse();
-	parentMatrix.Set(unit_M);
 }
 camera::camera(CVector081 p, CEuler081 e, int m) {
 	float unit_M[16] = { 1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1 };
-	parentMatrix.Set(unit_M);
 	rspeed = 1.0;
 	mspeed = 1.0;
 	pos = p;
@@ -30,7 +29,6 @@ camera::camera(CVector081 p, CEuler081 e, int m) {
 }
 camera::camera(CVector081 p, int m, CMatrix081 M) {
 	float unit_M[16] = { 1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1 };
-	parentMatrix.Set(unit_M);
 	rspeed = 1.0;
 	mspeed = 1.0;
 	pos = p;
@@ -40,7 +38,6 @@ camera::camera(CVector081 p, int m, CMatrix081 M) {
 }
 camera::camera(CVector081 p, int m) {
 	float unit_M[16] = { 1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1 };
-	parentMatrix.Set(unit_M);
 	rspeed = 1.0;
 	mspeed = 1.0;
 	pos = p;
@@ -57,7 +54,6 @@ camera::camera(CVector081 p, int m, CEuler081 e, CMatrix081 pm) {
 	mode = m;
 	elookAt = e;
 	mlookAt = e.ToMatrix().GetInverse();
-	parentMatrix = pm;
 }
 camera::camera(CVector081 p, int m, CMatrix081 M, CMatrix081 pm) {
 	rspeed = 1.0;
@@ -66,7 +62,6 @@ camera::camera(CVector081 p, int m, CMatrix081 M, CMatrix081 pm) {
 	mode = m;
 	mlookAt = M;
 	elookAt = M.GetInverse().ToEuler();
-	parentMatrix = pm;
 }
 void camera::Set_inter_path(CVector081* interpolation_pos, int num) {
 	path = interpolation_pos;
@@ -100,6 +95,17 @@ int camera::auto_move() {
 	}
 	else {
 		std::cout << "请先设置插值路径和视角变化路径，不能为空" << std::endl;
+	}
+}
+CVector081 camera::getAbsPos()
+{
+	if (parentModel != NULL) {
+		CMatrix081 transM = CMatrix081();
+		transM.SetTrans(parentModel->getAbsPos());
+		return transM.posMul(pos);
+	}
+	else {
+		return pos;
 	}
 }
 void camera::switch_mode(int m) {
@@ -249,7 +255,6 @@ void camera::rotate_o() {
 		eulerRotate();
 	}
 }
-
 void camera::eulerRotate() {
 	mlookAt = elookAt.ToMatrix().GetInverse();
 }

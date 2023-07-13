@@ -2,11 +2,11 @@
 #include "CVector081.h"
 #include "CMatrix081.h"
 #include "CQuaternion081.h"
-#include "CModel.h"
 #include <cmath>
 #include <atlimage.h>
 #include "glew.h"
 #include "glut.h"
+#include "CModel.h"
 #include <iostream>
 
 // 常用的轴
@@ -94,10 +94,6 @@ void CModel::DrawBox()
 }
 
 CModel::CModel(char* img_path) {
-	pos = CVector081();
-	parentMatrix = CMatrix081();
-	// 位置初始是0，0,0，移动就是不移动，就是单位矩阵了
-	parentMatrix.SetTrans(pos);
 	setSize(1, 1, 1);
 	if (img_path != NULL) {
 		LoadGLTextures(img_path);
@@ -117,21 +113,35 @@ void CModel::setSize(float x, float y, float z)
 	size.z = z;
 }
 
-CVector081 CModel::getAbsPos()
+void CModel::setSize(float r)
 {
-	return parentMatrix.posMul(pos);
+	size.x = r;
+	size.y = r;
+	size.z = r;
 }
 
+CVector081 CModel::getAbsPos()
+{
+	if (parentModel != NULL) {
+		CMatrix081 transM = CMatrix081();
+		transM.SetTrans(parentModel->getAbsPos());
+		return transM.posMul(pos);
+	}
+	else {
+		return pos;
+	}
+}
 
-void CModel::Draw(int mode, bool on_xyz)
+void CModel::Draw(int mode)
 {
 	glPushMatrix();
+	CVector081 abs_pos = getAbsPos();
+
+	// 注意这里的移动缩放和旋转的次序，不能混乱，不然都没法生效了，之后研究为啥
+	glTranslatef(abs_pos.x, abs_pos.y, abs_pos.z);
 	glScaled(size.x, size.y, size.z);
 	glRotatef(self_rotate_theta / 20 * 180 / 3.14, self_rotate_axis.x, self_rotate_axis.y, self_rotate_axis.z);
-	glTranslatef(pos.x, pos.y, pos.z);
-	if (on_xyz) {
-		Draw(5, true);
-	}
+
 	switch (mode)
 	{
 	case 0: // 不带贴图的球
@@ -140,9 +150,9 @@ void CModel::Draw(int mode, bool on_xyz)
 		break;
 	case 1: // 带贴图的球
 		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, texture[0]);
 		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
 		glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-		glBindTexture(GL_TEXTURE_2D, texture[0]);
 		glEnable(GL_TEXTURE_GEN_S);
 		glPolygonMode(GL_BACK, GL_FILL);
 		glEnable(GL_TEXTURE_GEN_T);
@@ -155,12 +165,11 @@ void CModel::Draw(int mode, bool on_xyz)
 	case 2: // 贴图立方体
 		DrawBox();
 		break;
-	case 3: // 画火箭上半部分
+	case 3: // 画火箭上半部分，零点坐标高度在圆柱体的底部，方便降落时
 		//火箭头
-		glPushMatrix();
 		glTranslatef(0, 0.5, 0);
-		glColor3f(0.5, 0, 0);
 		glPushMatrix();
+		glColor3f(0.5, 0, 0);
 		glTranslatef(0, 0.45, 0);
 		glRotatef(-90, 1, 0, 0); // 是用自己的旋转函数实现旋转
 		glutSolidCone(0.1, 0.3, 10, 10);
@@ -172,12 +181,12 @@ void CModel::Draw(int mode, bool on_xyz)
 		glRotatef(-90, 1, 0, 0);
 		glutSolidTorus(0.5, 0.7, 10, 10);
 		glPopMatrix();
-		glPopMatrix();
 		break;
-	case 4: // 画火箭下半部分
+	case 4: // 画火箭下半部分,零点坐标高度在圆柱体的头部
 		glColor3f(53 / 255.0, 42 / 255.0, 85 / 255.0);
+		glTranslatef(0, -0.7, 0);
 		glScalef(0.15, 1.5, 0.15);
-		glRotate(-90, 1, 0, 0);
+		glRotatef(-90, 1, 0, 0);
 		glutSolidTorus(0.5, 0.7, 10, 10);
 		break;
 	case 5: // 画坐标系
@@ -216,11 +225,18 @@ void CModel::Draw(int mode, bool on_xyz)
 		glEnd();
 	}
 	break;
-
 	default:
 		std::cout << "error! please select right mode from 0-3" << std::endl;
 		break;
 	}
-	glTranslatef(-pos.x, -pos.y, -pos.z);
+	glTranslatef(-abs_pos.x, -abs_pos.y, -abs_pos.z);
 	glPopMatrix();
+}
+
+CModel::CModel()
+{
+	parentModel = NULL;
+	R = 1;
+	self_rotate_axis = CVector081();
+	self_rotate_theta = 0;
 }

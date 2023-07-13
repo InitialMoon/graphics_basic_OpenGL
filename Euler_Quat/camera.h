@@ -4,6 +4,7 @@ class CVector081;
 class CMatrix081;
 class CEuler081;
 class CQuaternion081;
+class CModel;
 
 class camera {
 public:
@@ -19,7 +20,9 @@ public:
 	int view_pos = 0; // 位置数组下标
 	CEuler081 elookAt;
 	CMatrix081 mlookAt;
-	CMatrix081 parentMatrix; // 父矩阵,这玩意是在外面用的，这里面的相机所有的变化都在外面套上一层父矩阵即可
+	//CModel* parentModel = new CModel(); // 父矩阵,这玩意是在外面用的，这里面的相机所有的变化都在外面套上一层父矩阵即可
+	CModel* parentModel = (CModel*)malloc(1); // 父矩阵
+	CVector081 getAbsPos();
 	camera();
 	camera(CVector081 p, CEuler081 e, int m);
 	camera(CVector081 p, int m, CMatrix081 M);
