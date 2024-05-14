@@ -140,7 +140,10 @@ void CModel::Draw(int mode)
 	// 注意这里的移动缩放和旋转的次序，不能混乱，不然都没法生效了，之后研究为啥
 	glTranslatef(abs_pos.x, abs_pos.y, abs_pos.z);
 	glScaled(size.x, size.y, size.z);
-	glRotatef(self_rotate_theta / 20 * 180 / 3.14, self_rotate_axis.x, self_rotate_axis.y, self_rotate_axis.z);
+
+	glRotatef(self_rotate.h, 1, 0, 0);
+	glRotatef(self_rotate.p, 0, 1, 0);
+	glRotatef(self_rotate.b, 0, 0, 1);
 
 	switch (mode)
 	{
@@ -176,10 +179,19 @@ void CModel::Draw(int mode)
 		glPopMatrix();
 		//火箭身
 		glPushMatrix();
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, texture[0]);
+		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+		glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+		glEnable(GL_TEXTURE_GEN_S);
+		glEnable(GL_TEXTURE_GEN_T);
 		glColor3f(119 / 255.0, 137 / 255.0, 173 / 255.0);
 		glScalef(0.1, 1, 0.1);
 		glRotatef(-90, 1, 0, 0);
 		glutSolidTorus(0.5, 0.7, 10, 10);
+		glDisable(GL_TEXTURE_GEN_S);
+		glDisable(GL_TEXTURE_GEN_T);
+		glDisable(GL_TEXTURE_2D);
 		glPopMatrix();
 		break;
 	case 4: // 画火箭下半部分,零点坐标高度在圆柱体的头部
@@ -237,6 +249,5 @@ CModel::CModel()
 {
 	parentModel = NULL;
 	R = 1;
-	self_rotate_axis = CVector081();
-	self_rotate_theta = 0;
+	self_rotate = CEuler081();
 }

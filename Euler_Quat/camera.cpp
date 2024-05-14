@@ -75,8 +75,8 @@ int camera::auto_move() {
 	// 暂时只提供一种先转视角后移动位置的方式,当移动完毕后返回1，否则返回0
 	if (view != NULL && path != NULL) {
 		if (view_pos < view_num) {
-			pos = path[path_pos];
 			mlookAt = view[view_pos].ToMatrix().GetInverse();
+			pos = path[path_pos];
 			//elookAt = mlookAt.ToEuler();
 			elookAt = mlookAt.GetInverse().ToEuler();
 			view_pos++;

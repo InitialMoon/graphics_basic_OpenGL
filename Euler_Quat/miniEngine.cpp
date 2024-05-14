@@ -14,15 +14,38 @@
 #include <algorithm>
 #include <iostream>
 #include "string.h"
-#include <vector>
+#include <string>
 
 using namespace std;
 
+
 //常量区
 float unit_M[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+CVector081 v_rocket = CVector081(0, 0.1, 0);
 
 //2D字内容
 char* status_contnet;
+char* camera_tip1;
+char* camera_tip2;
+char* camera_tip3;
+char s[100];
+char ct2[100];
+char ct3[100];
+
+// 流程控制量
+double theta = 0.0; // 星球旋转的角度
+// 记录人走动开始时的theta值，从而得知小人何时走完一圈
+double person_theta = 0.0; // 人旋转的角度
+bool recieve_key = true; // 当这个值为真时是平滑变化完毕的时候，当为假的时候，就代表在变化的路径上，不接受任何键盘输入，同时会保证所有的其他值都为false
+bool planets_rotate = false;
+float rocket_seta = 0; // 记录火箭旋转的角度，是指变方向转的时候
+// 是否接受回车键，也就是在动作发生期间设为false，以免打乱动作进行
+bool recieve_enter = true;
+int enter_num = 0;
+int rocket_status = 0;// 0是未发射状态，1是起飞过程，2是下部分脱离的过程，3是飞到指定高度了，4是
+bool rocket1_draw = true;
+bool draw_person = false;
+
 
 // 相机
 // 记录当前相机是几号相机，0-4
@@ -32,17 +55,6 @@ bool can_switch_camera = true; // 能否调整视点，也就是是否稳定了
 vector<camera> cameras;
 camera* cur_camera; // 这个是我们当前使用的那个相机，可能被多个相机替代,直接声明一个指针方便
 camera inter_camera; // 插值用的相机
-
-// 控制量
-double theta = 0.0; // 星球旋转的角度
-
-int view_mode = 0; // 视点位置，当到达上帝视角的终点时值为0，在火箭视点上时为1
-
-bool recieve_key = true; // 当这个值为真时是平滑变化完毕的时候，当为假的时候，就代表在变化的路径上，不接受任何键盘输入，同时会保证所有的其他值都为false
-bool planets_rotate = false;
-bool need_fly = true; // 记录火箭是否还需要继续飞，因为飞过头会直接扎进月亮里，还会来回抖动
-bool have_started = false; // 记录火箭的起飞过，防止追踪月亮的过程中高度低于起飞阈值导致重新起飞了
-bool rocket_start = false; 
 
 // 所有模型的声明
 
@@ -69,13 +81,8 @@ CModel sky = CModel();
 //人
 CModel preson = CModel();
 
-
-bool rocket1_draw = true;
-bool updateAll = true;
-float rocket_seta = 0; // 记录火箭旋转的角度，是指变方向转的时候
-
-// 是否接受回车键，也就是在动作发生期间设为false，以免打乱动作进行
-bool recieve_enter = true;
+// 火箭的姿态控制量
+CVector081 rocket_lookAt = CVector081();
 
 map<char, bool> keyMap = { //map如果用const修饰，那么就没法用[]调用了
 	{'w', false},
@@ -100,7 +107,8 @@ map<char, bool> keyMap = { //map如果用const修饰，那么就没法用[]调用了
 	{' ', false}
 };
 
-void myDisplay(void);
+
+// 这是自己实现的一些gl提供的变换功能，但是目前处于废弃状态
 void myRotate(float seta, float x, float y, float z) { // 自己实现的旋转函数
 	CMatrix081 mymatrix;
 	mymatrix.SetRotate(seta, CVector081(x, y, z));
@@ -117,6 +125,55 @@ void myScalef(float x, float y, float z) {
 	CMatrix081 ScaleMat;
 	ScaleMat.SetScale(ScaleVec);
 	glMultMatrixf(ScaleMat);
+}
+
+
+void Font2D(char* str, double x, double y, int size)
+{
+	glColor3f(1, 1, 1);
+	//设置投影方式：平行投影
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	//输出字符串
+	int len = strlen(str);
+	glRasterPos2f(x, y);
+	for (int i = 0; i < len; ++i)
+	{
+		switch (size) {
+		case 1:
+			glutBitmapCharacter(GLUT_BITMAP_8_BY_13, str[i]);
+			break;
+		case 2:
+			glutBitmapCharacter(GLUT_BITMAP_9_BY_15, str[i]);
+			break;
+		case 3:
+			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, str[i]);
+			break;
+		case 4:
+			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, str[i]);
+			break;
+		case 5:
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, str[i]);
+			break;
+		case 6:
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, str[i]);
+			break;
+		case 7:
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, str[i]);
+			break;
+		}
+	}
+	//恢复投影方式
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
 }
 
 void responseAllKey() {
@@ -181,10 +238,143 @@ void responseAllKey() {
 }
 
 void updateRocket() {
-	//TODO
-	//cout << rocket1.getAbsPos().x << ",";
-	//cout << rocket1.getAbsPos().y << ",";
-	//cout << rocket1.getAbsPos().z << endl;
+	if (enter_num == 0) {
+		return;
+	}
+	else if (enter_num == 1) {
+		CVector081 station_abs_pos = station.getAbsPos();
+		CVector081 rocket_abs_pos = rocket.getAbsPos();
+		station_abs_pos.y = rocket_abs_pos.y;
+		CVector081 dir = station_abs_pos - rocket_abs_pos;
+		if (rocket.parentModel != &station) {
+			if (rocket.pos.y < 20) {
+				rocket.pos = rocket.pos + v_rocket;
+				rocket1.pos = rocket1.pos + v_rocket;
+			}
+			else if (rocket.pos.y < 25) {
+				rocket.pos = rocket.pos + v_rocket;
+				rocket1.pos = rocket1.pos - v_rocket * 2;
+				if (rocket1.pos.y < 12) {
+					rocket1_draw = false;
+				}
+			}
+			else {
+				if (rocket.self_rotate.b >= -88) {
+					rocket.self_rotate.b -= 2;
+				}
+				else if (dir.len() > 1) {
+					// 火箭朝向计算
+					dir = dir.Normalize();
+					// 火箭向着空间站的方向运动
+					rocket.pos = rocket.pos + dir * 0.8;
+					float sin = dir.z;
+					float cos = dir.x;
+					rocket.self_rotate.p = -(atan2(sin, cos) / PI) * 180;
+				}
+				else {
+					if (rocket.parentModel != &station) {
+						CVector081 sp = station.getAbsPos();
+						CMatrix081 trans = CMatrix081();
+						trans.SetTrans(sp);
+						trans = trans.GetInverse();
+						rocket.pos = trans.posMul(rocket.getAbsPos());
+						rocket.parentModel = &station;
+						string c = "2.Space station docking \n distance: " + to_string(rocket.pos.y - station.size.x);
+						strcpy(s, c.data());
+						status_contnet = s;
+					}
+				}
+			}
+		}
+		if (rocket.parentModel == &station) {
+			if (rocket.self_rotate.b <= 0) {
+				rocket.self_rotate.b += 2;
+			}
+			else if (rocket.pos.y > station.size.x) {
+				rocket.pos = rocket.pos - v_rocket;
+				string c = "2.Space station docking \n distance: " + to_string(rocket.pos.y - station.size.x);
+				strcpy(s, c.data());
+				status_contnet = s;
+			}
+			else {
+				recieve_enter = true;
+			}
+		}
+	}
+	else if (enter_num == 2) {
+		CVector081 moon_abs_pos = moon.getAbsPos();
+		CVector081 rocket_abs_pos = rocket.getAbsPos();
+		moon_abs_pos.y = rocket_abs_pos.y;
+		CVector081 dir = moon_abs_pos - rocket_abs_pos;
+		if (rocket.parentModel != &moon) {
+			string c = "3.Moon landing";
+			strcpy(s, c.data());
+			status_contnet = s;
+			if (rocket.pos.y < 10) {
+				rocket.pos = rocket.pos + v_rocket;
+			}
+			else if (rocket.pos.y < 15) {
+				rocket.pos = rocket.pos + v_rocket;
+			}
+			else {
+				if (rocket.self_rotate.b >= -88) {
+					rocket.self_rotate.b -= 2;
+				}
+				else if (dir.len() > 1) {
+					// 火箭朝向计算
+					dir = dir.Normalize();
+					// 火箭向着空间站的方向运动
+					rocket.pos = rocket.pos + dir * 0.8;
+					float sin = dir.z;
+					float cos = dir.x;
+					rocket.self_rotate.p = -(atan2(sin, cos) / PI) * 180;
+				}
+				else {
+					if (rocket.parentModel != &moon) {
+						CVector081 sp = moon.getAbsPos();
+						CMatrix081 trans = CMatrix081();
+						trans.SetTrans(sp);
+						trans = trans.GetInverse();
+						rocket.pos = trans.posMul(rocket.getAbsPos());
+						rocket.parentModel = &moon;
+						string c = "Space station docking \n distance: " + to_string(rocket.pos.y - moon.size.x);
+						strcpy(s, c.data());
+						status_contnet = s;
+					}
+				}
+			}
+		}
+		if (rocket.parentModel == &moon) {
+			if (rocket.self_rotate.b <= 0) {
+				rocket.self_rotate.b += 2;
+			}
+			else if (rocket.pos.y > moon.size.x) {
+				rocket.pos = rocket.pos - v_rocket;
+				string c = "4.Landing, distance: " + to_string(rocket.pos.y - moon.size.x);
+				strcpy(s, c.data());
+				status_contnet = s;
+			}
+			else {
+				recieve_enter = true;
+			}
+		}
+	}
+	else if (enter_num == 3) {
+		string c = "5.Walking";
+		strcpy(s, c.data());
+		status_contnet = s;
+		person_theta += 1;
+		draw_person = true;
+		person.pos = CVector081(0, moon.size.x + person.size.y / 2, 0);
+		if (draw_person) {
+			person.pos.y = cos(person_theta / 180 * PI) * (moon.size.x + person.size.y);
+			person.pos.z = sin(person_theta / 180 * PI) * (moon.size.x + person.size.y);
+		}
+		if (person_theta > 360) {
+			draw_person = false;
+			enter_num++; // 封锁该键位
+		}
+	}
 }
 
 void updatePlanets() {
@@ -204,8 +394,6 @@ void updatePlanets() {
 	moon.pos.z = sin(theta / 3) * moon.R;
 	station.pos.x = cos(theta / 2) * station.R;
 	station.pos.z = sin(theta / 2) * station.R;
-	person.pos.y = cos(theta / 20) * (moon.size.x + person.size.y);
-	person.pos.z = sin(theta / 20) * (moon.size.x + person.size.y);
 	jupiter.pos.x = cos(theta / 433.3) * jupiter.R;
 	jupiter.pos.z = sin(theta / 433.3) * jupiter.R;
 	saturn.pos.x = cos(theta / 37.8) * saturn.R;
@@ -219,16 +407,29 @@ void updatePlanets() {
 void updateView() { // 控制视点插值过程的的属性值变动模块，解放键位操作
 	if (!recieve_key) {
 		if (cur_camera->auto_move() == 0) {
-			//for (int i = 0; i < 3; i++) {
-			//	cout << cur_camera->pos[i] << ",";
-			//}
-			//cout << endl;
-			updateAll = false;
+			camera_tip1 = "view mode : Interpolation_camera";
 			return;
 		}
 		else {
+			switch (next_camera_number)
+			{
+			case 0:
+				camera_tip1 = "view mode : god_camera";
+				break;
+			case 1:
+				camera_tip1 = "view mode : earth_camera";
+				break;
+			case 2:
+				camera_tip1 = "view mode : rocket_camera";
+				break;
+			case 3:
+				camera_tip1 = "view mode : station_camera";
+				break;
+			case 4:
+				camera_tip1 = "view mode : person_camera";
+				break;
+			}
 			recieve_key = true;
-			updateAll = true;
 			can_switch_camera = true;
 			cur_camera = &cameras[next_camera_number];
 			camera_number = next_camera_number;
@@ -238,11 +439,11 @@ void updateView() { // 控制视点插值过程的的属性值变动模块，解放键位操作
 }
 
 void update() {
-	if (updateAll)
+	if (recieve_key) {
 		updateRocket();
-	if (planets_rotate) {
-		if (updateAll)
-			updatePlanets();
+	}
+	if (planets_rotate && recieve_key) {
+		updatePlanets();
 	}
 	if (!recieve_key) {
 		updateView();
@@ -399,6 +600,7 @@ void myKeyboardUpFunc(unsigned char key, int x, int y)
 		break;
 	case '3':
 	if (can_switch_camera) {
+		camera_tip1 = "view mode : Interpolation_camera";
 		cameras[next_camera_number].mode = cur_camera->mode;
 		can_switch_camera = false;
 		recieve_key = false;
@@ -442,7 +644,7 @@ void myKeyboardUpFunc(unsigned char key, int x, int y)
 	case '\r':
 		if (recieve_enter) {
 			recieve_enter = false;
-			rocket_start = true;
+			enter_num++;
 		}
 		break;
 	}
@@ -486,6 +688,7 @@ void SetRC()
 	earth.LoadGLTextures("Inkedearth.jpg");
 	station.LoadGLTextures("station.jpg");
 	person.LoadGLTextures("person.jpg");
+	rocket.LoadGLTextures("rocket.jpg");
 }
 
 // 统一版本
@@ -499,54 +702,6 @@ void SetView()
 		CVector081 v = cur_camera->getAbsPos();
 		glTranslatef(-v.x, -v.y, -v.z);
 	}
-}
-
-void Font2D(char* str, double x, double y, int size)
-{
-	glColor3f(1, 1, 1);
-	//设置投影方式：平行投影
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	//输出字符串
-	int len = strlen(str);
-	glRasterPos2f(x, y);
-	for (int i = 0; i < len; ++i)
-	{
-		switch (size) {
-		case 1:
-			glutBitmapCharacter(GLUT_BITMAP_8_BY_13, str[i]);
-			break;
-		case 2:
-			glutBitmapCharacter(GLUT_BITMAP_9_BY_15, str[i]);
-			break;
-		case 3:
-			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, str[i]);
-			break;
-		case 4:
-			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, str[i]);
-			break;
-		case 5:
-			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, str[i]);
-			break;
-		case 6:
-			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, str[i]);
-			break;
-		case 7:
-			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, str[i]);
-			break;
-		}
-	}
-	//恢复投影方式
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
 }
 
 void RenderWorld() {
@@ -567,14 +722,30 @@ void RenderWorld() {
 	saturn.Draw(0);
 	uranus.Draw(0);
 	neptune.Draw(0);
-	person.Draw(2);
+	if (draw_person) {
+		person.Draw(2);
+	}
 	rocket.Draw(3);
-	rocket1.Draw(4);
+	if (rocket1_draw) {
+		rocket1.Draw(4);
+	}
 
 	glDisable(GL_LIGHTING);
 	glDisable(GL_NORMALIZE);
 
+	camera_tip2 = "view pos: ";
+	CVector081 cam_pos = cur_camera->getAbsPos();
+	string c = "view pos : x:" + to_string(cam_pos.x) + ", y:" + to_string(cam_pos.y) + ", z:" + to_string(cam_pos.z);
+	strcpy(ct2, c.data());
+	camera_tip2 = ct2;
+	c = "view lookAt(Euler): h : " + to_string(cur_camera->elookAt.h) + ", p : " + to_string(cur_camera->elookAt.p) + ", b : " + to_string(cur_camera->elookAt.b);
+	strcpy(ct3, c.data());
+	camera_tip3 = ct3;
+
 	Font2D(status_contnet, -0.9, 0.95, 7);
+	Font2D(camera_tip1, -0.9, 0.9, 7);
+	Font2D(camera_tip2, -0.9, 0.85, 7);
+	Font2D(camera_tip3, -0.9, 0.8, 7);
 }
 
 void myDisplay(void)
@@ -610,7 +781,7 @@ void initCamera() {
 	// 视点和对应模型绑定
 	god_camera.parentModel = new CModel();
 	earth_camera.parentModel = &earth;
-	rocket_camera.parentModel = &rocket1;
+	rocket_camera.parentModel = &rocket;
 	space_station_camera.parentModel = &station;
 	person_camera.parentModel = &person;
 
@@ -636,15 +807,17 @@ void initCamera() {
 	rocket_camera.elookAt = direct;
 	rocket_camera.mlookAt = direct.ToMatrix().GetInverse();
 
-	space_station_camera.pos.y = station.size.y;
+	space_station_camera.pos.y = station.size.y + 3;
+	space_station_camera.pos.x = station.size.x - 6;
 	direct.h = -90;
-	direct.p = 30;
+	direct.p = -30;
 	space_station_camera.elookAt = direct;
 	space_station_camera.mlookAt = direct.ToMatrix().GetInverse();
 
-	person_camera.pos.y = person.pos.y;
-	direct.h = 90;
-	direct.p = 10;
+	person_camera.pos.y = person.pos.y + 1;
+	person_camera.pos.z = person.pos.z - 1;
+	direct.h = 180;
+	direct.p = -80;
 	person_camera.elookAt = direct;
 	person_camera.mlookAt = direct.ToMatrix().GetInverse();
 
@@ -656,9 +829,22 @@ void initCamera() {
 
 	// 初始相机指定
 	cur_camera = &cameras[0];
+
+	status_contnet = "1.Fly";
+	camera_tip1 = "view mode : god_camera";
+	camera_tip2 = "view pos: ";
+	CVector081 cam_pos = cur_camera->getAbsPos();
+	string c = "view pos : x:" + to_string(cam_pos.x) + ", y:" + to_string(cam_pos.y) + ", z:" + to_string(cam_pos.z);
+	strcpy(ct2, c.data());
+	camera_tip2 = ct2;
+	c = "view lookAt(Euler): h : " + to_string(cur_camera->elookAt.h) + ", p : " + to_string(cur_camera->elookAt.p) + ", b : " + to_string(cur_camera->elookAt.b);
+	strcpy(ct3, c.data());
+	camera_tip3 = ct3;
 }
 
 void initModelData() {
+	// 火箭的姿态
+	rocket_lookAt.Set(1, 0, 0);
 
 	// 行星绕行半径
 	mercury.R = 110;
@@ -726,7 +912,6 @@ void initModelPos() {
 	venus.pos = CVector081(venus.R, 0, 0);
 	moon.pos = CVector081(moon.R, 0, 0);
 	station.pos = CVector081(station.R, 0, 0);
-	person.pos = CVector081(0, moon.size.x + person.size.y / 2, 0);
 	mars.pos = CVector081(mars.R, 0, 0);
 	jupiter.pos = CVector081(jupiter.R, 0, 0);
 	saturn.pos = CVector081(saturn.R, 0, 0);
@@ -734,6 +919,7 @@ void initModelPos() {
 	neptune.pos = CVector081(neptune.R, 0, 0);
 	rocket.pos = CVector081(0, earth.size.x + 1.6, 0);
 	rocket1.pos = CVector081(0, earth.size.x + 1.8, 0);
+	person.pos = CVector081(0, moon.size.x + person.size.y / 2, 0);
 }
 
 void initModel() {
@@ -742,7 +928,7 @@ void initModel() {
 }
 
 void init() {
-	status_contnet = "1.Fly";
+	camera_tip1 = "view mode : god_camera";
 	initModel();
 	initCamera();
 }
@@ -753,7 +939,7 @@ void glMain(int argc, char* argv[]) {
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(800, 800);
-	glutCreateWindow("第一个OpenGL程序");
+	glutCreateWindow("太空航行1120213081");
 	glutDisplayFunc(&myDisplay);
 	glutTimerFunc(30, myTimerFunc, 0);
 	glutReshapeFunc(&myReshape);
